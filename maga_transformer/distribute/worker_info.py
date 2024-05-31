@@ -1,15 +1,15 @@
-
 from __future__ import annotations
+
 import os
 import socket
-from typing import Any
 from dataclasses import dataclass
-
+from typing import Any
 
 DEFAULT_START_PORT = 8088
 
+
 class ParallelInfo(object):
-    def __init__(self, tp_size: int , pp_size: int , world_size: int , world_rank: int , local_world_size: int):
+    def __init__(self, tp_size: int, pp_size: int, world_size: int, world_rank: int, local_world_size: int):
         self.tp_size = tp_size
         self.pp_size = pp_size
         self.world_size = world_size
@@ -43,14 +43,15 @@ class ParallelInfo(object):
     @staticmethod
     def from_env() -> ParallelInfo:
         info = ParallelInfo(
-                tp_size=int(os.environ.get('TP_SIZE', '1')),
-                pp_size=int(os.environ.get('PP_SIZE', '1')),
-                world_size=int(os.environ.get('WORLD_SIZE', '1')),
-                world_rank=int(os.environ.get('WORLD_RANK', '0')),
-                local_world_size=int(os.environ.get('LOCAL_WORLD_SIZE', '1')))
+            tp_size=int(os.environ.get('TP_SIZE', '1')),
+            pp_size=int(os.environ.get('PP_SIZE', '1')),
+            world_size=int(os.environ.get('WORLD_SIZE', '1')),
+            world_rank=int(os.environ.get('WORLD_RANK', '0')),
+            local_world_size=int(os.environ.get('LOCAL_WORLD_SIZE', '1')))
         if (info.tp_size * info.pp_size != info.world_size or
-            info.world_rank >= info.world_size):
-            raise Exception(f'tp_size:{info.tp_size}, pp_size:{info.pp_size}, world_size:{info.world_size}, world_rank:{info.world_rank} invalid world config')
+                info.world_rank >= info.world_size):
+            raise Exception(
+                f'tp_size:{info.tp_size}, pp_size:{info.pp_size}, world_size:{info.world_size}, world_rank:{info.world_rank} invalid world config')
         # 假设 GPU 均匀分布，可以整除
         if info.world_size % info.local_world_size != 0:
             raise Exception("not support info.world_size mod info.local_world_size != 0")
@@ -59,16 +60,18 @@ class ParallelInfo(object):
     # used for ut
     def reload(self):
         new_info = self.from_env()
-        self.tp_size=new_info.tp_size
-        self.pp_size=new_info.pp_size
-        self.world_size=new_info.world_size
-        self.world_rank=new_info.world_rank
-        self.local_world_size=new_info.local_world_size
-        
+        self.tp_size = new_info.tp_size
+        self.pp_size = new_info.pp_size
+        self.world_size = new_info.world_size
+        self.world_rank = new_info.world_rank
+        self.local_world_size = new_info.local_world_size
+
     def __str__(self):
         return f"ParallelInfo:[ tp_size={self.tp_size} pp_size={self.pp_size} world_size={self.world_size} world_rank={self.world_rank} local_world_size={self.local_world_size} ]"
 
+
 g_parallel_info = ParallelInfo.from_env()
+
 
 class WorkerInfo(object):
     def __init__(self, ip: str, server_port: int, gang_hb_port: int, name: str, info: Any):
@@ -77,7 +80,7 @@ class WorkerInfo(object):
         self.gang_hb_port = gang_hb_port
         self.name = name
         self.info = info
-        
+
     def equals(self, other: 'WorkerInfo') -> bool:
         return self.ip == other.ip and self.server_port == other.server_port
 
@@ -90,13 +93,14 @@ class WorkerInfo(object):
             name='', info=None)
         return info
 
+    # By jimpang: 123容器网络使用了host模型，端口需要由123分配，当前我们只支持单机模式，这里的rank id模型应该为0，我们直接从环境变量获取端口
     @staticmethod
-    def server_port_offset(local_rank: int) -> int:
-        return int(os.environ.get('START_PORT', DEFAULT_START_PORT)) + local_rank * 2
+    def server_port_offset(local_rank: int, server_port: int = -1) -> int:
+        return int(os.environ.get('START_PORT', DEFAULT_START_PORT))
 
     @staticmethod
-    def gang_hb_port_offset(local_rank: int) -> int:
-        return int(os.environ.get('START_PORT', DEFAULT_START_PORT)) + local_rank * 2 + 1
+    def gang_hb_port_offset(local_rank: int, server_port: int = -1) -> int:
+        return int(os.environ.get('START_HB_PORT', DEFAULT_START_PORT + 1))
 
     # used for ut
     def reload(self):
@@ -106,11 +110,13 @@ class WorkerInfo(object):
         self.gang_hb_port = new_info.gang_hb_port
         self.name = new_info.name
         self.info = new_info.info
-        
+
     def __str__(self):
         return f"WorkerInfo: [ip={self.ip} server_port={self.server_port} gang_hb_port={self.gang_hb_port} name={self.name} info={self.info} ]"
 
+
 g_worker_info = WorkerInfo.from_env()
+
 
 @dataclass
 class MasterInfo:
@@ -122,14 +128,16 @@ class MasterInfo:
     dynamic_decoder_nccl_port: int
     nccl_op_port: int
 
+
 g_master_info = MasterInfo(
     ip='',
     th_nccl_port=0,
     context_decoder_nccl_port=0,
     decoder_nccl_port=0,
-    gpt_nccl_port = 0,
+    gpt_nccl_port=0,
     dynamic_decoder_nccl_port=0,
     nccl_op_port=0)
+
 
 def update_master_info(ip, base_port):
     g_master_info.ip = ip
